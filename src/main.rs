@@ -1,3 +1,4 @@
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Error, StdoutLock, Write};
 
@@ -17,6 +18,8 @@ struct Body {
     in_reply_to: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     echo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<u16>,
 }
 
 impl Message {
@@ -29,6 +32,7 @@ impl Message {
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
                 echo: None,
+                id: None,
             },
         }
     }
@@ -42,8 +46,29 @@ impl Message {
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
                 echo: self.body.echo.clone(),
+                id: None,
             },
         }
+    }
+
+    fn do_generate(&self, id: u16) -> Self {
+        Message {
+            src: self.dest.clone(),
+            dest: self.src.clone(),
+            body: Body {
+                msg_type: String::from("generate_ok"),
+                msg_id: Some(&self.body.msg_id.unwrap() + 1),
+                in_reply_to: self.body.msg_id,
+                echo: None,
+                id: Some(id),
+            },
+        }
+    }
+
+    fn do_reply(&self, stdout: &mut impl Write) -> io::Result<()> {
+        serde_json::to_writer(&mut *stdout, self)?;
+        stdout.write_all(b"\n")?;
+        Ok(())
     }
 }
 
@@ -51,29 +76,37 @@ fn main() -> io::Result<()> {
     let stdin = std::io::stdin().lock();
     let mut stdin = stdin.lines();
     let mut stdout = std::io::stdout().lock();
-    let mut in_id: u8 = 128;
+    let mut rng = rand::thread_rng();
 
-    // {"id":0,"src":"c0","dest":"n0","body":{"type":"init","node_id":"n0","node_ids":["n0"],"msg_id":1}}
     let init_req: Message =
         serde_json::from_str(&stdin.next().expect("failed to read init").unwrap())
             .expect("failed to serialize");
     let init_reply = init_req.init();
-    let json = serde_json::to_string(&init_reply)?;
-    serde_json::to_writer(&mut stdout, &init_reply)?;
-    &stdout.write_all(b"\n")?;
+    init_reply.do_reply(&mut stdout)?;
 
     drop(stdin);
 
     // Organize the loop, handle multiple events
-    // {"src": "c1","dest": "n1","body": {"type": "echo","msg_id": 1,"echo": "Please echo 35"}}
     let stdin = std::io::stdin().lock();
     for line in stdin.lines() {
-        let echo_req: Message = serde_json::from_str(&line.expect("failed to read echo"))
+        let incoming: Message = serde_json::from_str(&line.expect("failed to read echo"))
             .expect("failed to serialize echo");
-        let echo_reply = echo_req.do_echo();
-        let json = serde_json::to_string(&echo_reply)?;
-        serde_json::to_writer(&mut stdout, &echo_reply)?;
-        &stdout.write_all(b"\n")?;
+
+        if incoming.body.msg_type == String::from("echo") {
+            let echo_reply = incoming.do_echo();
+            echo_reply.do_reply(&mut stdout)?;
+        } else if incoming.body.msg_type == "generate" {
+            let id: u16 = rng.gen();
+            let gen_reply = incoming.do_generate(id);
+            gen_reply.do_reply(&mut stdout)?;
+        }
     }
     Ok(())
 }
+
+// init
+// {"src": "c1","dest": "n1","body": {"type": "generate","msg_id": 1}}
+// echo
+// {"src": "c1","dest": "n1","body": {"type": "echo","msg_id": 1,"echo": "Please echo 35"}}
+// gen
+// {"src": "c1","dest": "n1","body": {"type": "generate","msg_id": 1}}
