@@ -57,7 +57,6 @@ fn main() -> io::Result<()> {
     let init_req: Message =
         serde_json::from_str(&stdin.next().expect("failed to read init").unwrap())
             .expect("failed to serialize");
-    //let mut init_req: Message = serde_json::from_str(&init).expect("bbb");
     let init_reply = init_req.init();
     let json = serde_json::to_string(&init_reply)?;
     serde_json::to_writer(&mut stdout, &init_reply)?;
