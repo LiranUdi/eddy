@@ -13,13 +13,13 @@ struct Message {
 struct Body {
     #[serde(rename = "type")]
     msg_type: String,
-    msg_id: Option<u8>,
+    msg_id: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    in_reply_to: Option<u8>,
+    in_reply_to: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     echo: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<u16>,
+    id: Option<u32>,
 }
 
 impl Message {
@@ -51,7 +51,7 @@ impl Message {
         }
     }
 
-    fn do_generate(&self, id: u16) -> Self {
+    fn do_generate(&self, id: u32) -> Self {
         Message {
             src: self.dest.clone(),
             dest: self.src.clone(),
@@ -96,7 +96,7 @@ fn main() -> io::Result<()> {
             let echo_reply = incoming.do_echo();
             echo_reply.do_reply(&mut stdout)?;
         } else if incoming.body.msg_type == "generate" {
-            let id: u16 = rng.gen();
+            let id: u32 = rng.gen();
             let gen_reply = incoming.do_generate(id);
             gen_reply.do_reply(&mut stdout)?;
         }
