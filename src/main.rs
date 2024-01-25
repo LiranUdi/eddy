@@ -10,25 +10,25 @@ struct Message {
 }
 
 // Cleanup required!
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Body {
     #[serde(rename = "type")]
-    msg_type: String,
-    msg_id: Option<u32>,
+    msg_type: Events,
+    msg_id: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    in_reply_to: Option<u32>,
+    in_reply_to: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     echo: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<u32>,
+    id: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     node_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     node_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    messages: Option<Vec<i32>>,
+    messages: Option<Vec<usize>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    message: Option<i32>,
+    message: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     topology: Option<std::collections::HashMap<String, Vec<String>>>,
 }
@@ -40,10 +40,16 @@ impl Message {
             src: self.dest.clone(),
             dest: self.src.clone(),
             body: Body {
-                msg_type: String::from("init_ok"),
+                msg_type: Events::InitOk,
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
-                ..Default::default()
+                echo: None,
+                id: None,
+                node_id: None,
+                node_ids: None,
+                messages: None,
+                message: None,
+                topology: None,
             },
         }
     }
@@ -53,25 +59,35 @@ impl Message {
             src: self.dest.clone(),
             dest: self.src.clone(),
             body: Body {
-                msg_type: String::from("echo_ok"),
+                msg_type: Events::EchoOk,
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
                 echo: self.body.echo.clone(),
-                ..Default::default()
+                id: None,
+                node_id: None,
+                node_ids: None,
+                messages: None,
+                message: None,
+                topology: None,
             },
         }
     }
 
-    fn do_generate(&self, id: u32) -> Self {
+    fn do_generate(&self, id: usize) -> Self {
         Message {
             src: self.dest.clone(),
             dest: self.src.clone(),
             body: Body {
-                msg_type: String::from("generate_ok"),
+                msg_type: Events::GenerateOk,
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
                 id: Some(id),
-                ..Default::default()
+                echo: None,
+                node_id: None,
+                node_ids: None,
+                messages: None,
+                message: None,
+                topology: None,
             },
         }
     }
@@ -87,24 +103,35 @@ impl Message {
             src: self.dest.clone(),
             dest: self.src.clone(),
             body: Body {
-                msg_type: String::from("broadcast_ok"),
+                msg_type: Events::BroadcastOk,
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
-                ..Default::default()
+                echo: None,
+                id: None,
+                node_id: None,
+                node_ids: None,
+                messages: None,
+                message: None,
+                topology: None,
             },
         }
     }
 
-    fn do_broadcast_read(&self, values: &Vec<i32>) -> Self {
+    fn do_broadcast_read(&self, values: &Vec<usize>) -> Self {
         Message {
             src: self.dest.clone(),
             dest: self.src.clone(),
             body: Body {
-                msg_type: String::from("read_ok"),
+                msg_type: Events::ReadOk,
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
                 messages: Some(values.clone()),
-                ..Default::default()
+                echo: None,
+                id: None,
+                node_id: None,
+                node_ids: None,
+                message: None,
+                topology: None,
             },
         }
     }
@@ -114,21 +141,36 @@ impl Message {
             src: self.dest.clone(),
             dest: self.src.clone(),
             body: Body {
-                msg_type: String::from("topology_ok"),
+                msg_type: Events::TopologyOk,
                 msg_id: Some(&self.body.msg_id.unwrap() + 1),
                 in_reply_to: self.body.msg_id,
-                ..Default::default()
+                echo: None,
+                id: None,
+                node_id: None,
+                node_ids: None,
+                message: None,
+                topology: None,
+                messages: None,
             },
         }
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
 enum Events {
     Init,
     Echo,
     Generate,
     Broadcast,
+    InitOk,
+    EchoOk,
+    GenerateOk,
+    BroadcastOk,
+    ReadOk,
+    Read,
+    Topology,
+    TopologyOk,
 }
 
 fn main() -> io::Result<()> {
@@ -147,33 +189,39 @@ fn main() -> io::Result<()> {
 
     drop(stdin);
 
-    let mut messages: Vec<i32> = vec![];
+    let mut messages: Vec<usize> = vec![];
     // Organize the loop, handle multiple events
     let stdin = std::io::stdin().lock();
     for line in stdin.lines() {
         let incoming: Message = serde_json::from_str(&line.expect("failed handling request"))
             .expect("failed handling request");
-        if incoming.body.msg_type == String::from("echo") {
-            let echo_reply = incoming.do_echo();
-            echo_reply.do_reply(&mut stdout)?;
-        } else if incoming.body.msg_type == String::from("generate") {
-            let id: u32 = rng.gen();
-            let gen_reply = incoming.do_generate(id);
-            gen_reply.do_reply(&mut stdout)?;
-        } else if incoming.body.msg_type == String::from("broadcast") {
-            if let Some(message) = incoming.body.message {
-                messages.push(message.clone());
+
+        match incoming.body.msg_type {
+            Events::Echo => {
+                let echo_reply = incoming.do_echo();
+                echo_reply.do_reply(&mut stdout)?;
             }
-            let broadcast_reply = incoming.do_broadcast();
-            broadcast_reply.do_reply(&mut stdout)?;
-        } else if incoming.body.msg_type == String::from("read") {
-            let read_reply = incoming.do_broadcast_read(&messages);
-            read_reply.do_reply(&mut stdout)?;
-        } else if incoming.body.msg_type == String::from("topology") {
-            let topology_reply = incoming.do_topology();
-            topology_reply.do_reply(&mut stdout)?;
-        } else {
-            incoming.do_reply(&mut stdout)?;
+            Events::Generate => {
+                let id: usize = rng.gen();
+                let gen_reply = incoming.do_generate(id);
+                gen_reply.do_reply(&mut stdout)?;
+            }
+            Events::Broadcast => {
+                if let Some(message) = incoming.body.message {
+                    messages.push(message.clone());
+                }
+                let broadcast_reply = incoming.do_broadcast();
+                broadcast_reply.do_reply(&mut stdout)?;
+            }
+            Events::Read => {
+                let read_reply = incoming.do_broadcast_read(&messages);
+                read_reply.do_reply(&mut stdout)?;
+            }
+            Events::Topology => {
+                let topology_reply = incoming.do_topology();
+                topology_reply.do_reply(&mut stdout)?;
+            }
+            _ => {}
         }
     }
     Ok(())
@@ -181,7 +229,7 @@ fn main() -> io::Result<()> {
 
 // init
 // {"src":"c1","dest":"n1","body":{"msg_id":1,"type":"init","node_id":"n1","node_ids":["n1"]}}
-// echo
+// echn
 // {"src": "c1","dest": "n1","body": {"type": "echo","msg_id": 1,"echo": "Please echo 35"}}
 // gen
 // {"src": "c1","dest": "n1","body": {"type": "generate","msg_id": 1}}
