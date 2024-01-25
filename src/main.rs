@@ -1,6 +1,6 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::io::{self, BufRead, Error, StdoutLock, Write};
+use std::io::{self, BufRead, Write};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Message {
@@ -20,6 +20,10 @@ struct Body {
     echo: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    node_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    node_ids: Option<Vec<String>>,
 }
 
 impl Message {
@@ -33,6 +37,8 @@ impl Message {
                 in_reply_to: self.body.msg_id,
                 echo: None,
                 id: None,
+                node_id: None,
+                node_ids: None,
             },
         }
     }
@@ -47,6 +53,8 @@ impl Message {
                 in_reply_to: self.body.msg_id,
                 echo: self.body.echo.clone(),
                 id: None,
+                node_id: None,
+                node_ids: None,
             },
         }
     }
@@ -61,6 +69,8 @@ impl Message {
                 in_reply_to: self.body.msg_id,
                 echo: None,
                 id: Some(id),
+                node_id: None,
+                node_ids: None,
             },
         }
     }
@@ -83,6 +93,7 @@ fn main() -> io::Result<()> {
             .expect("failed to serialize");
     let init_reply = init_req.init();
     init_reply.do_reply(&mut stdout)?;
+    init_req.do_reply(&mut stdout)?;
 
     drop(stdin);
 
@@ -95,7 +106,7 @@ fn main() -> io::Result<()> {
         if incoming.body.msg_type == String::from("echo") {
             let echo_reply = incoming.do_echo();
             echo_reply.do_reply(&mut stdout)?;
-        } else if incoming.body.msg_type == "generate" {
+        } else if incoming.body.msg_type == String::from("generate") {
             let id: u32 = rng.gen();
             let gen_reply = incoming.do_generate(id);
             gen_reply.do_reply(&mut stdout)?;
@@ -105,8 +116,9 @@ fn main() -> io::Result<()> {
 }
 
 // init
-// {"src": "c1","dest": "n1","body": {"type": "generate","msg_id": 1}}
+// {src: "c1", dest: "n1", body: {msg_id: 1, type: "init", node_id: "n1", node_ids: ["n1"]}}
 // echo
 // {"src": "c1","dest": "n1","body": {"type": "echo","msg_id": 1,"echo": "Please echo 35"}}
 // gen
 // {"src": "c1","dest": "n1","body": {"type": "generate","msg_id": 1}}
+//
