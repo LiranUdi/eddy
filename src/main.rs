@@ -9,7 +9,6 @@ struct Message<Payload> {
     body: Body<Payload>,
 }
 
-// Cleanup required!
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Body<Payload> {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,7 +18,6 @@ struct Body<Payload> {
     payload: Payload,
 }
 
-// This is ugly, clean this up!
 impl <Payload> Message<Payload> {
     fn new_reply(self) -> Self{
         Self {
@@ -42,40 +40,7 @@ impl <Payload> Message<Payload> {
         Ok(())
     }
 
-
-    //     Message {
-    //         src: self.dest.clone(),
-    //         dest: self.src.clone(),
-    //         body: Body {
-    //             payload: Events::TopologyOk,
-    //             msg_id: Some(&self.body.msg_id.unwrap() + 1),
-    //             in_reply_to: self.body.msg_id,
-    //             node_id: None,
-    //             node_ids: None,
-    //             message: None,
-    //             topology: None,
-    //         },
-    //     }
-    // }
 }
-
-// #[derive(Clone, Serialize, Deserialize, Debug)]
-// #[serde(rename_all = "snake_case")]
-// #[serde(tag = "type")]
-// enum Events {
-//     Init,
-//     InitOk,
-//     Echo { echo: String },
-//     Generate,
-//     Broadcast,
-//     EchoOk { echo: String },
-//     GenerateOk { id: usize },
-//     BroadcastOk,
-//     ReadOk { messages: Vec<usize> },
-//     Read,
-//     Topology,
-//     TopologyOk,
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -183,6 +148,6 @@ fn main() -> io::Result<()> {
 // broadcast
 // {"src": "c1","dest": "n1","body": {"msg_id": 3, "type": "broadcast","message": 210}}
 // read
-//  {"src": "c1","dest": "n1","body": {"msg_id": 3, "type": "read"}}
-//  topology
-//  {"src":"c1","dest":"n1","body":{"msg_id":3,"type":"topology","topology":{"n1":["n2","n3"],"n2":["n1"],"n3":["n1"]}}}
+// {"src": "c1","dest": "n1","body": {"msg_id": 3, "type": "read"}}
+// topology
+// {"src":"c1","dest":"n1","body":{"msg_id":3,"type":"topology","topology":{"n1":["n2","n3"],"n2":["n1"],"n3":["n1"]}}}
