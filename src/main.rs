@@ -138,16 +138,3 @@ fn main() -> io::Result<()> {
     }
     Ok(())
 }
-
-// init
-// {"src":"c1","dest":"n1","body":{"msg_id":1,"type":"init","node_id":"n1","node_ids":["n1"]}}
-// echo
-// {"src": "c1","dest": "n1","body": {"type": "echo", "msg_id": 1, "echo": "Please echo 35"}}
-// gen
-// {"src": "c1","dest": "n1","body": {"type": "generate","msg_id": 1}}
-// broadcast
-// {"src": "c1","dest": "n1","body": {"msg_id": 3, "type": "broadcast","message": 210}}
-// read
-// {"src": "c1","dest": "n1","body": {"msg_id": 3, "type": "read"}}
-// topology
-// {"src":"c1","dest":"n1","body":{"msg_id":3,"type":"topology","topology":{"n1":["n2","n3"],"n2":["n1"],"n3":["n1"]}}}
